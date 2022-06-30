@@ -1,0 +1,363 @@
+----------------------------------------------------------------------------------------------------------------------------
+Load Data to HDFS
+----------------------------------------------------------------------------------------------------------------------------
+1. Copy data to VM in document folder
+
+	In the VM
+    - Navigate to Devices - Shared Folder - Shared Folder Settings
+        - Change the location to C:\Users\MS\Desktop\sharedfolder
+    - Launch a Terminal and run the following command
+        $ sh Downloads/mountsf
+    - Use the files explorer and Navigate to Downloads to find the sharedfolder
+	- Copy to documents in VM
+
+2. Start Hadoop daemons
+	- $ cd /usr/local/hadoop-2.9.1/sbin/
+	$ ./start-all.sh
+	
+
+3. Load Data HDFS
+	- Load data in Hadoop
+		hadoop fs -put /home/hduser/Documents/hr_db hdfs://localhost:54310/user/hduser/
+		hadoop fs -ls hdfs://localhost:54310/user/hduser/hr_db/
+		
+		##List data
+		hduser@hduser-VirtualBox:/usr/local/hadoop-2.9.1/sbin$ hadoop fs -ls hdfs://localhost:54310/user/hduser/hr_db/
+		Found 7 items
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/countries
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/departments
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/employees
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/job_history
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/jobs
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/locations
+		drwxr-xr-x   - hduser supergroup          0 2022-06-30 09:18 hdfs://localhost:54310/user/hduser/hr_db/regions
+		hduser@hduser-VirtualBox:/usr/local/hadoop-2.9.1/sbin$ 
+
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Copy data using Hive tables
+----------------------------------------------------------------------------------------------------------------------------
+
+$ hive
+
+hive> SHOW DATABASES ;
+
+hive> CREATE DATABASE hr_db ;
+
+hive> SHOW DATABASES ;
+
+hive> USE hr_db ;
+
+hive> SHOW TABLES ;
+
+# Create Country table
+
+hive> CREATE EXTERNAL TABLE countries(country_id STRING,country_name STRING,region_id INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/countries/' ;
+
+hive> select * from countries;
+
+hive> DESCRIBE countries ;
+
+# Create Region table
+
+hive> CREATE EXTERNAL TABLE region(region_id INT,region_name STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/regions/' ;
+
+hive> select * from region;
+
+hive> DESCRIBE region ;
+
+# Create Department table
+
+hive> CREATE EXTERNAL TABLE department(department_id INT,department_name STRING, manager_id INT, location_id INT ) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/departments/' ;
+
+hive> select * from department;
+
+hive> DESCRIBE department ;
+
+# Create Job Histroty table
+
+hive> CREATE EXTERNAL TABLE job_history(employee_id INT,start_date date,end_date date, job_id STRING, department_id INT ) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/job_history/' ;
+
+hive> select * from job_history;
+
+hive> DESCRIBE job_history ;
+
+
+# Create Job table
+
+hive> CREATE EXTERNAL TABLE job(job_id STRING,job_name STRING,min_sal INT, max_sal INT) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/jobs/' ;
+
+hive> select * from job;
+
+hive> DESCRIBE job ;
+
+
+# Create locations table
+
+hive> CREATE EXTERNAL TABLE locations(location_id INT,street_add STRING,postal_code INT, city STRING, state STRING, country_id STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/locations/' ;
+
+hive> select * from locations;
+
+hive> DESCRIBE locations ;
+
+
+# Create employees table
+
+hive> CREATE EXTERNAL TABLE employees(employee_id INT,first_name STRING,last_name STRING,email STRING, phone INT, hire_date date, job_id STRING, salary DOUBLE, commision INT, manager_id INT, department_id INT  ) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' LINES TERMINATED BY '\n' STORED AS TEXTFILE LOCATION 'hdfs://localhost:54310/user/hduser/hr_db/employees/' ;
+
+hive> select * from employees;
+
+hive> DESCRIBE employees ;
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Usercase 1: User case with HIVE queries
+----------------------------------------------------------------------------------------------------------------------------
+
+   a. Retrieve last_name, first_name, salary, salary+300 as increment salary from employees table
+		select first_name, last_name, salary, salary+300 from employees;
+   b. Find out the ID's of departments in which employees are working
+		select distinct d.department_id from employees e, department d where e.department_id=d.department_id;
+   c. Retrieve last_name, job_id, department_id of employee having last name as Whalen 
+		select e.last_name, e.job_id, d.department_id from employees e, department d where e.department_id=d.department_id and e.last_name='Whalen';
+   d. Retrieve last name and salary of all employees who have salary greater than 5000 working in department 90
+		select e.last_name,e.salary from employees e, department d  where e.department_id=d.department_id and d.department_id=90 and e.salary>5000;
+   e. Retrieve last_name, salary of all employees working as 'SA_REP','AD_PRES' earning above 5000, sort the data in ascending order of last name
+		select e.last_name,e.salary from employees where job_id in ('SA_REP','AD_PRES') and salary>5000 order by last_name desc;
+   f. Retrieve the last names of employees whose last but one character of the last name is e
+		select last_name from employees where last_name like '%e';
+   g. Retrieve the names of employees not having managers
+		select first_name, last_name from employees where manager_id is null;
+   h. Retrieve the employee name and the name of the department in which the employee is working
+		select e.first_name , e.last_name, d.department_name from employees e, department d where e.department_id=d.department_id;
+   i. List all the department ids having SIX employees
+		select count(e.employee_id), d.department_name from employees e, department d where e.department_id=d.department_id group by d.department_name having count(e.employee_id)>6;
+
+
+
+hive> exit ;
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Usercase 2: Using Spark SQL
+----------------------------------------------------------------------------------------------------------------------------
+$spark-shell
+
+   a. Retrieve last_name, first_name, salary, salary+300 as increment salary from employees table
+		spark.sql("select first_name, last_name, salary, salary+300 from employees").show();
+   b. Find out the ID's of departments in which employees are working
+		spark.sql("select distinct d.department_id from employees e, department d where e.department_id=d.department_id").show();
+   c. Retrieve last_name, job_id, department_id of employee having last name as Whalen 
+		spark.sql("select e.last_name, e.job_id, d.department_id from employees e, department d where e.department_id=d.department_id and e.last_name='Whalen'").show();
+   d. Retrieve last name and salary of all employees who have salary greater than 5000 working in department 90
+		spark.sql("select * from employees e, department d  where e.department_id=d.department_id and d.department_id=90 and e.salary>5000").show();
+   e. Retrieve last_name, salary of all employees working as 'SA_REP','AD_PRES' earning above 5000, sort the data in ascending order of last name
+		spark.sql("select e.last_name,e.salary from employees where job_id in ('SA_REP','AD_PRES') and salary>5000 order by last_name desc").show();
+   f. Retrieve the last names of employees whose last but one character of the last name is e
+		spark.sql("select last_name from employees where last_name like '%e'").show();
+   g. Retrieve the names of employees not having managers
+		spark.sql("select first_name, last_name from employees where manager_id is null").show();
+   h. Retrieve the employee name and the name of the department in which the employee is working
+		spark.sql("select e.first_name , e.last_name, d.department_name from employees e, department d where e.department_id=d.department_id").show();
+   i. List all the department ids having SIX employees
+		spark.sql("select count(e.employee_id), d.department_name from employees e, department d where e.department_id=d.department_id group by d.department_name having count(e.employee_id)>6").show();
+
+
+----------------------------------------------------------------------------------------------------------------------------
+Usercase 3: Using pySpark RDD
+----------------------------------------------------------------------------------------------------------------------------
+$pyspark
+
+####Load country data in RDD
+>>>from pyspark.sql import SparkSession
+>>>spark = SparkSession.builder.appName('SparkByExamples.com').getOrCreate()
+>>>countryDataPath = "hdfs://localhost:54310/user/hduser/hr_db/countries/"
+>>>countryRDD = spark.sparkContext.textFile(countryDataPath).map(lambda lines:lines.split("\t"))
+>>>countryRDD.take(3);
+
+
+####Load department data in RDD
+>>>deptDataPath = "hdfs://localhost:54310/user/hduser/hr_db/departments/"
+>>>deptRDD = spark.sparkContext.textFile(deptDataPath).map(lambda lines:lines.split("\t"))
+>>>deptRDD.take(3);
+
+
+####Load Job History data in RDD
+>>>jobHDataPath = "hdfs://localhost:54310/user/hduser/hr_db/job_history/"
+>>>jobHRDD = spark.sparkContext.textFile(jobHDataPath).map(lambda lines:lines.split("\t"))
+>>>jobHRDD.take(3);
+
+
+####Load Job data in RDD
+>>>jobDataPath = "hdfs://localhost:54310/user/hduser/hr_db/jobs/"
+>>>jobRDD = spark.sparkContext.textFile(jobDataPath).map(lambda lines:lines.split("\t"))
+>>>jobRDD.take(3);
+
+####Load Location data in RDD
+>>>locationsDataPath = "hdfs://localhost:54310/user/hduser/hr_db/locations/"
+>>>locationsRDD = spark.sparkContext.textFile(locationsDataPath).map(lambda lines:lines.split("\t"))
+>>>locationsRDD.take(3);
+
+
+####Load Employees data in RDD
+>>>empDataPath = "hdfs://localhost:54310/user/hduser/hr_db/employees/"
+>>>empRDD = spark.sparkContext.textFile(empDataPath).map(lambda lines:lines.split("\t"))
+>>>empRDD.take(3);
+
+#Document on joins to help: https://medium.com/@alexandergao/core-pyspark-performing-an-inner-join-on-an-rdd-b8bac25c7ccb
+
+   a. Retrieve last_name, first_name, salary, salary+300 as increment salary from employees table
+		empRDD.map(lambda x: (x[1], x[2], x[7], float(x[7])+300.0)).collect()
+		
+   b. Find out the ID's of departments in which employees are working
+		empkeyval= empRDD.map(lambda x:(x[10], x[0]))
+		deptkeyval = deptRDD.map(lambda x: (x[0], x[1]))
+		empDept = empkeyval.join(deptkeyval);
+		empDept.map(lambda x: x[0]).distinct().collect()
+		
+   c. Retrieve last_name, job_id, department_id of employee having last name as Whalen
+		empRDD.map(lambda x: (x[2], x[6], x[10])).filter(lambda x: x[0]=='Whalen').collect()
+		
+   d. Retrieve last name and salary of all employees who have salary greater than 5000 working in department 90
+		empRDD.map(lambda x: (x[2], x[7])).filter(lambda x: float(x[1])>5000.0).collect()
+		
+   e. Retrieve last_name, salary of all employees working as 'SA_REP','AD_PRES' earning above 5000, sort the data in ascending order of last name
+		empRDD.map(lambda x: (x[2], x[7], x[6])).filter(lambda x: float(x[1])>5000.0 and (x[2]=='AD_PRES' or x[2]=='SA_REP')).collect()
+		
+   f. Retrieve the last names of employees whose last but one character of the last name is e
+		empRDD.map(lambda x: x[2]).filter(lambda x: x[2].endswith('e')).collect()
+		
+   g. Retrieve the names of employees not having managers
+		empRDD.map(lambda x: (x[1], x[9])).filter(lambda x: x[1]=='null').collect()
+		
+   h. Retrieve the employee name and the name of the department in which the employee is working
+		empkeyval= empRDD.map(lambda x:(x[10], x[1]))
+		deptkeyval = deptRDD.map(lambda x: (x[0], x[1]))
+		empDept = empkeyval.join(deptkeyval);
+		empDept.take(2)
+		empDept.map(lambda x: x[1][0]).distinct().collect()
+		
+		
+   i. List all the department ids having SIX employees
+		empkeyval= empRDD.map(lambda x:(x[10], x[1]))
+		deptkeyval = deptRDD.map(lambda x: (x[0], x[1]))
+		empDept = empkeyval.join(deptkeyval);
+		empDept.take(2)
+		empDeptCountByValue = empDept.map(lambda x: (x[0], 1)).reduceByKey(lambda a,b: a+b)
+		empDeptCountByValue.collect()
+		empDeptCountByValue.filter(lambda x:  x[1]=>6).collect()
+		
+
+
+
+------------------------------------------------------------------------------------- 
+Usercase 4: Using pySpark Dataframes 
+-------------------------------------------------------------------------------------
+>>>from pyspark.sql import SparkSession
+>>>import pyspark.sql.types as typ
+
+####Load Country data in Dataframes
+>>>countryStructFields = [('country_id', typ.StringType(), False), ('country_name', typ.StringType(), False), ('region_id', typ.IntegerType(), False)]
+>>>countryStructType = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in countryStructFields])
+>>>countryDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/countries/", schema = countryStructType)
+>>>countryDF.show()
+
+
+####Load region data in Dataframes
+>>>regionStructFields = [('region_id', typ.IntegerType(), False), ('region_name', typ.StringType(), False)]
+>>>regionStructType = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in regionStructFields])
+>>>regionDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/regions/", schema = regionStructType)
+>>>regionDF.show()
+
+
+####Load department data in Dataframes
+
+>>>deptStructFields = [('dept_id', typ.StringType(), False), ('department_name', typ.StringType(), False), ('manager_id', typ.StringType(), False), ('location_id', typ.IntegerType(), False)]
+>>>deptStructType = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in deptStructFields])
+>>>deptDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/departments/", schema = deptStructType)
+>>>deptDF.show(100)
+
+
+
+####Load job_history data in Dataframes
+
+>>>jobHStructFields = [('employee_id', typ.IntegerType(), False), ('start_date', typ.DateType(), False),('end_date', typ.DateType(), False), ('job_id', typ.StringType(), False), ('department_id', typ.IntegerType(), False)]
+>>>jobHStructType = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in jobHStructFields])
+>>>jobHDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/job_history/", schema = jobHStructType)
+>>>jobHDF.show()
+
+####Load job data in Dataframes
+
+>>>jobStructFields = [('job_id', typ.StringType(), False), ('job_name', typ.StringType(), False),('min_sal', typ.IntegerType(), False), ('max_sal', typ.IntegerType(), False)]
+>>>jobStructType = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in jobStructFields])
+>>>jobDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/jobs/", schema = jobStructType)
+>>>jobDF.show()
+
+
+####Load locations data in Dataframes
+
+>>>locationStructFields = [('location_id', typ.IntegerType(), False), ('street_add', typ.StringType(), False),('postal_code', typ.StringType(), False),('city', typ.StringType(), False),('state', typ.StringType(), False), ('country_id', typ.StringType(), False)]
+>>>locationStructFields = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in locationStructFields])
+>>>locationDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/locations/", schema = locationStructFields)
+>>>locationDF.show(100)
+
+
+####Load Employees data in Dataframes
+>>>empStructFields = [('employee_id', typ.IntegerType(), False), ('first_name', typ.StringType(), False),('last_name', typ.StringType(), False), ('email', typ.StringType(), False), ('phone', typ.StringType(), False), ('hire_date', typ.StringType(), False), ('job_id', typ.StringType(), False), ('salary', typ.FloatType(), False), ('commision', typ.StringType(), False), ('manager_id', typ.StringType(), False), ('department_id', typ.StringType(), False)]
+>>>empStructType = typ.StructType([typ.StructField(e[0], e[1], e[2]) for e in empStructFields])
+>>>empDF=spark.read.option("delimiter","\t").csv("hdfs://localhost:54310/user/hduser/hr_db/employees/", schema = empStructType)
+>>>empDF.show(100)
+
+   a. Retrieve last_name, first_name, salary, salary+300 as increment salary from employees table
+		from pyspark.sql.functions import col
+		empDF.select('first_name', 'last_name', 'salary',col('salary')+300.0).show()
+		
+		
+   b. Find out the ID's of departments in which employees are working
+		empDF.select('department_id').distinct().filter(col('department_id')!='null').show()
+		
+		
+   c. Retrieve last_name, job_id, department_id of employee having last name as Whalen
+		empDF.select('last_name','job_id', 'department_id').filter(col('last_name')=='Whalen').show()
+
+		
+   d. Retrieve last name and salary of all employees who have salary greater than 5000 working in department 90
+		empDF.select('last_name','salary').filter((col('salary')>5000) & (col('department_id')==90)).show()
+
+
+   e. Retrieve last_name, salary of all employees working as 'SA_REP','AD_PRES' earning above 5000, sort the data in ascending order of last name
+		from pyspark.sql.functions import desc
+		empDF.select('last_name','salary').filter((col('job_id').isin('SA_REP','AD_PRES')) & (col('salary')>5000)).orderBy(desc("last_name")).show()
+		
+		
+   f. Retrieve the last names of employees whose last but one character of the last name is e
+		empDF.select('last_name').filter(col('last_name').like("%e")).show()
+		
+		
+   g. Retrieve the names of employees not having managers
+		empDF.select('first_name', 'last_name', 'manager_id').filter(col('manager_id')=='null').show()
+		
+		
+   h. Retrieve the employee name and the name of the department in which the employee is working
+		Docs: https://sparkbyexamples.com/pyspark/pyspark-join-explained-with-examples/
+		
+		empdptDF= empDF.join(deptDF,col("department_id") == col("dept_id"),"left")
+		empdptDF.select('first_name', 'last_name', 'department_name').show()
+		
+		
+		
+   i. List all the department ids having SIX employees
+		
+		doc: https://sparkbyexamples.com/pyspark/pyspark-groupby-explained-with-example/
+		
+		empdptDF.groupBy("department_name").count().filter(col('count')==6).show()
+		
+
+------------------------------------------------------------------------------------- 
+Stop Hadoop daemons
+-------------------------------------------------------------------------------------
+
+$ cd /usr/local/hadoop-2.9.1/sbin/
+
+$ ./stop-all.sh
